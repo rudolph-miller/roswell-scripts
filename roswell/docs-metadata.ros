@@ -4,5 +4,126 @@
 exec ros -Q -- $0 "$@"
 |#
 
-(defun main (&rest argv)
-  (declare (ignorable argv)))
+(ql:quickload :cl-fad :silent t)
+
+(defvar *scr* "manual.scr")
+(defvar *doc-dir* "docs")
+
+(defun symbol-types-with-docstring (symbol)
+  (let ((result nil))
+    (when (documentation symbol 'variable)
+       (push :variable result))
+    (ignore-errors
+     (cond
+       ((and (macro-function symbol)
+             (documentation symbol 'function))
+        (push :macro result))
+       ((and (symbol-function symbol)
+             (documentation symbol 'function))
+        (push :function result))))
+    (let ((class (find-class symbol nil)))
+      (if class
+        (if (typep class 'structure-class)
+            (when (documentation symbol 'structure)
+              (push :struct result))
+            (when (documentation class t)
+              (push :class result)))
+        (when (documentation symbol 'type)
+          (push :type result))))
+    result))
+
+(defun symbol-sort (list)
+  (sort list
+        #'(lambda (a b)
+            (apply #'string< (mapcar #'symbol-name (list a b))))))
+
+(defun external-symbols-with-docstring (package)
+  (let ((hash (make-hash-table)))
+    (do-external-symbols (symbol package)
+      (let ((types (symbol-types-with-docstring symbol)))
+        (dolist (type types)
+          (push symbol (gethash type hash)))))
+    (maphash #'(lambda (key value)
+                 (setf (gethash key hash)
+                       (symbol-sort value)))
+             hash)
+    hash))
+
+(defmacro with-section ((title) &body body)
+  `(progn
+     (format t "~&@begin(section)~%@title(~a)~%" ,title)
+     ,@body
+     (format t "~&@end(section)~%")))
+
+(defmacro with-package ((package) &body body)
+  `(progn
+     (format t "~&@cl:with-package[name=\"~(~a~)\"](~%" ,package)
+     ,@body
+     (format t "~&)~%")))
+
+(defun type->title (type)
+  (ecase type
+    (:variable "Globals")
+    (:function "Functions")
+    (:macro "Macros")
+    (:type "Types")
+    (:struct "Structures")
+    (:class "Classes")))
+
+(defun print-symbol-scr (package)
+  (let ((system (asdf:find-system package)))
+    (with-section (package)
+      (with-section ("Overview")
+        (princ (asdf:system-description system)))
+      (let ((hash (external-symbols-with-docstring package)))
+        (dolist (key (list :variable :function :macro :type :struct :class))
+          (let ((symbols (gethash key hash)))
+            (when symbols
+              (with-section ((type->title key))
+                (with-package (package)
+                  (loop for symbol in symbols
+                        do (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))
+      (with-section ("Author")
+        (princ (asdf:system-author system)))
+      (with-section ("Licence")
+        (princ (asdf:system-licence system))))))
+
+(defun print-manifest (package)
+  (let ((system (asdf:find-system package)))
+    (format t
+            "~&(:docstring-markup-format :scriba
+ :systems (:~(~a~))
+ :documents ((:title \"~a\"
+              :authors (\"~a\")
+              :output-format (:type :multi-html
+                              :template :minima)
+              :sources (\"~a\"))))~%"
+            package
+            package
+            (asdf:system-author system)
+            *scr*)))
+
+(defun main (package &rest argv)
+  (declare (ignorable argv))
+  (let* ((package (intern (string-upcase package) :keyword))
+         (source-directory (asdf:system-source-directory package))
+         (doc-dirotcory (fad:pathname-as-directory (merge-pathnames *doc-dir* source-directory)))
+         (manifest-path (merge-pathnames "manifest.lisp" doc-dirotcory))
+         (scr-path (merge-pathnames *scr* doc-dirotcory)))
+    (ql:quickload package :silent t)
+    (ensure-directories-exist doc-dirotcory)
+    (format t "~&Diretcory: ~a~%" doc-dirotcory)
+
+    (with-open-file (*standard-output* manifest-path
+                                       :direction :output
+                                       :if-exists :supersede
+                                       :external-format :utf8)
+      (print-manifest package))
+    (format t "~&Manifest:  ~a~%" manifest-path)
+
+    (with-open-file (*standard-output* scr-path
+                                       :direction :output
+                                       :if-exists :supersede
+                                       :external-format :utf8)
+      (print-symbol-scr package))
+    (format t "~&SCR:       ~a~%" scr-path)))

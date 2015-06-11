@@ -1,0 +1,15 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+
+(declaim #+sbcl(sb-ext:muffle-conditions style-warning))
+(ql:quickload :codex :silent t)
+
+(defun main (package &rest argv)
+  (declare (ignorable argv))
+  (let* ((package (intern (string-upcase package) :keyword)))
+    (let ((*standard-output* (make-string-output-stream)))
+      (codex:document package))
+    (format t "~&Build: ~adocs/build/~%" (asdf:system-source-directory package))))
