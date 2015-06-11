@@ -72,21 +72,21 @@ exec ros -Q -- $0 "$@"
 
 (defun print-symbol-scr (package)
   (let ((system (asdf:find-system package)))
-    (with-section (package)
-      (with-section ("Overview")
+    (with-section ("Overview")
+      (with-section ("Description")
         (princ (asdf:system-description system)))
-      (let ((hash (external-symbols-with-docstring package)))
-        (dolist (key (list :variable :function :macro :type :struct :class))
-          (let ((symbols (gethash key hash)))
-            (when symbols
-              (with-section ((type->title key))
-                (with-package (package)
-                  (loop for symbol in symbols
-                        do (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))
       (with-section ("Author")
         (princ (asdf:system-author system)))
       (with-section ("Licence")
-        (princ (asdf:system-licence system))))))
+        (princ (asdf:system-licence system))))
+    (let ((hash (external-symbols-with-docstring package)))
+      (dolist (key (list :variable :function :macro :type :struct :class))
+        (let ((symbols (gethash key hash)))
+          (when symbols
+            (with-section ((type->title key))
+              (with-package (package)
+                (loop for symbol in symbols
+                      do (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
 
 (defun print-manifest (package)
   (let ((system (asdf:find-system package)))
