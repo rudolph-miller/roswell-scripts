@@ -6,6 +6,7 @@ exec ros -Q -- $0 "$@"
 
 (ql:quickload :cl-fad :silent t)
 (ql:quickload :alexandria :silent t)
+(ql:quickload :codex :silent t)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Globals
@@ -190,4 +191,8 @@ exec ros -Q -- $0 "$@"
                                        :if-exists :supersede
                                        :external-format :utf8)
       (print-symbol-scr package))
-    (format t "~&SCR:       ~a~%" scr-path)))
+    (format t "~&SCR:       ~a~%" scr-path)
+    (with-output-to-string (*standard-output*)
+      (with-output-to-string (*error-output*)
+        (codex:document package)))
+    (format t "~&Build:     ~adocs/build/~%" (asdf:system-source-directory package))))
