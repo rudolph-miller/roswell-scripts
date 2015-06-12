@@ -5,9 +5,53 @@ exec ros -Q -- $0 "$@"
 |#
 
 (ql:quickload :cl-fad :silent t)
+(ql:quickload :alexandria :silent t)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Globals
+
+(defvar *example-dir* "examples")
 (defvar *scr* "manual.scr")
 (defvar *doc-dir* "docs")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Path
+
+(defun doc-dirotcory (package)
+  (let ((source-directory (asdf:system-source-directory package)))
+    (fad:pathname-as-directory (merge-pathnames *doc-dir* source-directory))))
+
+(defun manifest-path (package)
+  (merge-pathnames "manifest.lisp" (doc-dirotcory package)))
+
+(defun scr-path (package)
+  (merge-pathnames *scr* (doc-dirotcory package)))
+
+(defun get-relative-path (from to)
+  (let ((dir1 (pathname-directory from))
+        (dir2 (pathname-directory to))
+        (result))
+    (assert (and (eql (car dir1) :absolute)
+                 (eql (car dir2) :absolute)))
+    (setq dir1 (cdr dir1)
+          dir2 (cdr dir2))
+    (loop for name1 in dir1
+          for name2 in dir2
+          when (equal name1 name2)
+            do (setq dir1 (remove name1 dir1 :test #'equal)
+                     dir2 (remove name2 dir2 :test #'equal)))
+    (dolist (_ dir1)
+      (declare (ignore _))
+      (push :up result))
+    (dolist (name dir2)
+      (push name result))
+    (make-pathname
+     :name (pathname-name to)
+     :type (pathname-type to)
+     :directory `(:relative ,@(nreverse result)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; SCR
 
 (defun symbol-types-with-docstring (symbol)
   (let ((result nil))
@@ -23,13 +67,17 @@ exec ros -Q -- $0 "$@"
         (push :function result))))
     (let ((class (find-class symbol nil)))
       (if class
-        (if (typep class 'structure-class)
-            (when (documentation symbol 'structure)
-              (push :struct result))
-            (when (documentation class t)
-              (push :class result)))
-        (when (documentation symbol 'type)
-          (push :type result))))
+          (cond
+            ((and (typep class 'structure-class)
+                  (documentation symbol 'structure))
+             (push :struct result))
+            ((and (subtypep class 'condition)
+                  (documentation class t))
+             (push :condition result))
+            ((documentation class t)
+             (push :class result)))
+          (when (documentation symbol 'type)
+            (push :type result))))
     result))
 
 (defun symbol-sort (list)
@@ -68,25 +116,39 @@ exec ros -Q -- $0 "$@"
     (:macro "Macros")
     (:type "Types")
     (:struct "Structures")
-    (:class "Classes")))
+    (:class "Classes")
+    (:condition "Conditions")))
 
 (defun print-symbol-scr (package)
-  (let ((system (asdf:find-system package)))
+  (let* ((system (asdf:find-system package))
+         (examples (fad:list-directory (merge-pathnames *example-dir* (asdf:system-source-directory system))))
+         (scr-path (scr-path package)))
     (with-section ("Overview")
       (with-section ("Description")
         (princ (asdf:system-description system)))
+      (when examples
+        (with-section ("Examples")
+          (dolist (example examples)
+            (with-section ((pathname-name example))
+              (format t "~&@code[lang=lisp](@include[path=~a]())~%" (get-relative-path scr-path example))))))
+      (alexandria:when-let ((homepage (asdf:system-homepage system)))
+        (with-section ("Source")
+          (format t "~&@link[uri=~a](~a)~%" homepage package)))
       (with-section ("Author")
-        (princ (asdf:system-author system)))
+        (format t "~&@b(~a)~%"(asdf:system-author system)))
       (with-section ("Licence")
         (princ (asdf:system-licence system))))
     (let ((hash (external-symbols-with-docstring package)))
-      (dolist (key (list :variable :function :macro :type :struct :class))
+      (dolist (key (list :variable :function :macro :type :struct :class :condition))
         (let ((symbols (gethash key hash)))
           (when symbols
             (with-section ((type->title key))
               (with-package (package)
                 (loop for symbol in symbols
                       do (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Manifest
 
 (defun print-manifest (package)
   (let ((system (asdf:find-system package)))
@@ -103,13 +165,15 @@ exec ros -Q -- $0 "$@"
             (asdf:system-author system)
             *scr*)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Main
+
 (defun main (package &rest argv)
   (declare (ignorable argv))
   (let* ((package (intern (string-upcase package) :keyword))
-         (source-directory (asdf:system-source-directory package))
-         (doc-dirotcory (fad:pathname-as-directory (merge-pathnames *doc-dir* source-directory)))
-         (manifest-path (merge-pathnames "manifest.lisp" doc-dirotcory))
-         (scr-path (merge-pathnames *scr* doc-dirotcory)))
+         (doc-dirotcory (doc-dirotcory package))
+         (manifest-path (manifest-path package))
+         (scr-path (scr-path package)))
     (ql:quickload package :silent t)
     (ensure-directories-exist doc-dirotcory)
     (format t "~&Diretcory: ~a~%" doc-dirotcory)
