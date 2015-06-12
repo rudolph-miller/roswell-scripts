@@ -1,0 +1,17 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+
+(ql:quickload :cl-project :silent t)
+(ql:quickload :cl-fad :silent t)
+
+(defvar *skeleton-directory* #P"~/.config/common-lisp/skeleton/")
+
+(defun main (name &optional description &rest argv)
+  (declare (ignorable argv))
+  (if (fad:directory-exists-p *skeleton-directory*)
+      (let ((cl-project:*skeleton-directory* *skeleton-directory*))
+        (cl-project:make-project name :description description))
+      (format nil "Skeleton Not Found.")))
