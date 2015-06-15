@@ -1,18 +1,32 @@
-# Roswell Scripts
+# Roswell-Scripts - Useful Roswell Scripts.
 
-My Roswell scripts.
+## Usage
 
-## See Also
+### gendoc
 
-- [Roswell](https://github.com/snmsts/roswell)
+```
+> gendoc my-project
+```
+
+### make-my-project
+
+```
+> make-my-project my-project "My New Project."
+```
+
+## Installation
+
+```
+> ros install roswell-scripts
+```
 
 ## Author
 
-* Rudolph Miller
+* Rudolph Miller (chopsticks.tk.ppfm@gmail.com)
 
 ## Copyright
 
-Copyright (c) 2015 Rudolph Miller
+Copyright (c) 2015 Rudolph Miller (chopsticks.tk.ppfm@gmail.com)
 
 ## License
 
