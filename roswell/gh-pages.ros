@@ -1,0 +1,32 @@
+#!/bin/sh
+
+cd ~/lisp/elb-log
+
+################################################################
+## Variables
+
+PWD=`pwd`
+SYSTEM_NAME=${PWD##*/}
+CURRENT_BRANCH=`git rev-parse --abbrev-ref HEAD`
+
+################################################################
+## checkout gh-pages
+
+git branch -D gh-pages >/dev/null 2>&1
+git branch gh-pages >/dev/null 2>&1
+git checkout gh-pages >/dev/null 2>&1
+
+mkdir -p docs
+
+$HOME/.roswell/bin/gendoc $SYSTEM_NAME
+git add -f docs/
+COMMIT_MESSAGE="update docs/build at $(date +%s). [ci skip]"
+git commit -m $COMMIT_MESSAGE >/dev/null 2>&1
+echo "commit -m \"$COMMIT_MESSAGE\"."
+git push origin gh-pages >/dev/null 2>&1 || git push -f origin gh-pages >/dev/null 2>&1
+echo "push origin gh-pages."
+
+################################################################
+## checkout $CURRENT_BRANCH
+
+git checkout $CURRENT_BRANCH >/dev/null 2>&1
