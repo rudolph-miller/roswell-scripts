@@ -4,9 +4,15 @@
 exec ros -Q -- $0 "$@"
 |#
 
+(in-package :cl-user)
+
 (ql:quickload :cl-fad :silent t)
 (ql:quickload :alexandria :silent t)
 (ql:quickload :codex :silent t)
+
+(defpackage gendoc
+  (:use :cl))
+(in-package :gendoc)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Globals
@@ -106,7 +112,10 @@ exec ros -Q -- $0 "$@"
 
 (defmacro with-package ((package) &body body)
   `(progn
-     (format t "~&@cl:with-package[name=\"~(~a~)\"](~%" ,package)
+     (format t "~&@cl:with-package[name=\"~(~a~)\"](~%" (etypecase ,package
+                                                          (package (package-name ,package))
+                                                          (symbol ,package)
+                                                          (string ,package)))
      ,@body
      (format t "~&)~%")))
 
@@ -144,9 +153,9 @@ exec ros -Q -- $0 "$@"
         (let ((symbols (gethash key hash)))
           (when symbols
             (with-section ((type->title key))
-              (with-package (package)
                 (loop for symbol in symbols
-                      do (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
+                      do (with-package ((symbol-package symbol))
+                           (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Manifest
