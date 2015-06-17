@@ -6,9 +6,7 @@ exec ros -Q -- $0 "$@"
 
 (in-package :cl-user)
 
-(ql:quickload :cl-fad :silent t)
-(ql:quickload :alexandria :silent t)
-(ql:quickload :codex :silent t)
+(ql:quickload '(:cl-fad :alexandria :codex) :silent t)
 
 (defpackage gendoc
   (:use :cl))
