@@ -96,10 +96,12 @@ exec ros -Q -- $0 "$@"
 
 (defmacro with-package ((package) &body body)
   `(progn
-     (format t "~&@cl:with-package[name=\"~(~a~)\"](~%" (etypecase ,package
-                                                          (package (package-name ,package))
-                                                          (symbol ,package)
-                                                          (string ,package)))
+     (format t
+             "~&@cl:with-package[name=\"~(~a~)\"](~%"
+             (etypecase ,package
+               (package (package-name ,package))
+               (symbol ,package)
+               (string ,package)))
      ,@body
      (format t "~&)~%")))
 
@@ -116,9 +118,21 @@ exec ros -Q -- $0 "$@"
 
 (defun print-symbol-scr (package)
   (let* ((system (asdf:find-system package))
-         (examples (fad:list-directory (merge-pathnames *example-dir* (asdf:system-source-directory system))))
+         (source-directory (asdf:system-source-directory system))
+         (author (asdf:system-author system))
+         (travis-p (probe-file (merge-pathnames ".travis.yml" source-directory)))
+         (circle-p (probe-file (merge-pathnames "circle.yml" source-directory)))
+         (examples (fad:list-directory (merge-pathnames *example-dir* source-directory)))
          (scr-path (scr-path package)))
     (with-section ("Overview")
+      (when travis-p
+        (let ((travis-url (format nil "https://travis-ci.org/~a/~(~a~)" author package)))
+          (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%" travis-url travis-url)))
+      (when circle-p
+        (let ((circle-url (format nil "https://circleci.com/gh/~a/~(~a~)" author package)))
+          (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%" circle-url circle-url)))
+      (let ((coveralls-url (format nil "https://coveralls.io/repos/~a/~(~a~)" author package)))
+          (format t "~&@link[uri=~a](@image[src=\"~a/badge.svg\"]())~%" coveralls-url coveralls-url))
       (with-section ("Description")
         (princ (asdf:system-description system)))
       (when examples
