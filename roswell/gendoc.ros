@@ -6,7 +6,7 @@ exec ros -Q -- $0 "$@"
 
 (in-package :cl-user)
 
-(ql:quickload '(:cl-fad :alexandria :codex) :silent t)
+(ql:quickload '(:cl-fad :alexandria :closer-mop :cl-ppcre :docparser :codex) :silent t)
 
 (defpackage gendoc
   (:use :cl))
@@ -58,32 +58,17 @@ exec ros -Q -- $0 "$@"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SCR
 
-(defun symbol-types-with-docstring (symbol)
-  (let ((result nil))
-    (when (documentation symbol 'variable)
-       (push :variable result))
-    (ignore-errors
-     (cond
-       ((and (macro-function symbol)
-             (documentation symbol 'function))
-        (push :macro result))
-       ((and (symbol-function symbol)
-             (documentation symbol 'function))
-        (push :function result))))
-    (let ((class (find-class symbol nil)))
-      (if class
-          (cond
-            ((and (typep class 'structure-class)
-                  (documentation symbol 'structure))
-             (push :struct result))
-            ((and (subtypep class 'condition)
-                  (documentation class t))
-             (push :condition result))
-            ((documentation class t)
-             (push :class result)))
-          (when (documentation symbol 'type)
-            (push :type result))))
-    result))
+(defun key->type (key)
+  (case key
+    (:generic-function :generic)
+    (otherwise key)))
+
+(defun symbol-types-with-docstring (symbol index)
+  (let ((nodes (docparser:query index :symbol-name (symbol-name symbol))))
+    (loop for node across nodes
+          when (docparser:node-docstring node)
+            collecting (ppcre:register-groups-bind (name) ("(.+)-NODE" (princ-to-string (type-of node)))
+                         (when name (key->type (intern name :keyword)))))))
 
 (defun symbol-sort (list)
   (sort list
@@ -91,9 +76,10 @@ exec ros -Q -- $0 "$@"
             (apply #'string< (mapcar #'symbol-name (list a b))))))
 
 (defun external-symbols-with-docstring (package)
-  (let ((hash (make-hash-table)))
+  (let ((hash (make-hash-table))
+        (index (docparser:parse package)))
     (do-external-symbols (symbol package)
-      (let ((types (symbol-types-with-docstring symbol)))
+      (let ((types (symbol-types-with-docstring symbol index)))
         (dolist (type types)
           (push symbol (gethash type hash)))))
     (maphash #'(lambda (key value)
@@ -121,6 +107,7 @@ exec ros -Q -- $0 "$@"
   (ecase type
     (:variable "Globals")
     (:function "Functions")
+    (:generic "Gereric Functions")
     (:macro "Macros")
     (:type "Types")
     (:struct "Structures")
@@ -137,8 +124,12 @@ exec ros -Q -- $0 "$@"
       (when examples
         (with-section ("Examples")
           (dolist (example examples)
-            (with-section ((pathname-name example))
-              (format t "~&@code[lang=lisp](@include[path=~a]())~%" (get-relative-path scr-path example))))))
+            (let ((name (pathname-name example)))
+              (ppcre:register-groups-bind ((#'parse-integer num) rest) ("(\\\d+)\\\.(.+)" name)
+                (with-section ((if (and num rest)
+                                   (format nil "~a. ~a" num rest)
+                                   name))
+                  (format t "~&@code[lang=lisp](@include[path=~a]())~%" (get-relative-path scr-path example))))))))
       (alexandria:when-let ((homepage (asdf:system-homepage system)))
         (with-section ("Source")
           (format t "~&@link[uri=~a](~a)~%" homepage package)))
@@ -147,13 +138,13 @@ exec ros -Q -- $0 "$@"
       (with-section ("Licence")
         (princ (asdf:system-licence system))))
     (let ((hash (external-symbols-with-docstring package)))
-      (dolist (key (list :variable :function :macro :type :struct :class :condition))
+      (dolist (key (list :variable :function :generic :macro :type :struct :class :condition))
         (let ((symbols (gethash key hash)))
           (when symbols
             (with-section ((type->title key))
-                (loop for symbol in symbols
-                      do (with-package ((symbol-package symbol))
-                           (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
+              (loop for symbol in symbols
+                    do (with-package ((symbol-package symbol))
+                         (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Manifest
