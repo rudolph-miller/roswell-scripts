@@ -16,6 +16,7 @@ exec ros -Q -- $0 "$@"
 ;; Globals
 
 (defvar *example-dir* "examples")
+(defvar *image-dir* "images")
 (defvar *scr* "manual.scr")
 (defvar *doc-dir* "docs")
 
@@ -116,6 +117,11 @@ exec ros -Q -- $0 "$@"
     (:class "Classes")
     (:condition "Conditions")))
 
+(defun pretty-name (name)
+  (or (ppcre:register-groups-bind ((#'parse-integer num) rest) ("(\\\d+)\\\.(.+)" name)
+        (format nil "~a. ~a" num rest))
+      name))
+
 (defun print-symbol-scr (package)
   (let* ((system (asdf:find-system package))
          (source-directory (asdf:system-source-directory system))
@@ -123,6 +129,7 @@ exec ros -Q -- $0 "$@"
          (travis-p (probe-file (merge-pathnames ".travis.yml" source-directory)))
          (circle-p (probe-file (merge-pathnames "circle.yml" source-directory)))
          (examples (fad:list-directory (merge-pathnames *example-dir* source-directory)))
+         (images (fad:list-directory (merge-pathnames *image-dir* source-directory)))
          (scr-path (scr-path package)))
     (with-section ("Overview")
       (when travis-p
@@ -135,15 +142,26 @@ exec ros -Q -- $0 "$@"
           (format t "~&@link[uri=~a](@image[src=\"~a/badge.svg\"]())~%" coveralls-url coveralls-url))
       (with-section ("Description")
         (princ (asdf:system-description system)))
+      (when images
+        (with-section ("Images")
+          (dolist (image images)
+            (unless (string-equal (pathname-type image) "lisp")
+              (with-section ((pretty-name (pathname-name image)))
+                (uiop:copy-file image (make-pathname :name (pathname-name image)
+                                                     :type (pathname-type image)
+                                                     :defaults (fad:pathname-directory-pathname scr-path)))
+                (format t "~&@image[src=\"~a.~a\"]()~%" (pathname-name image) (pathname-type image))
+                (let ((found (find (pathname-name image) images
+                                   :test #'(lambda (name pathname)
+                                             (and (string-equal name (pathname-name pathname))
+                                                  (string-equal (pathname-type pathname) "lisp"))))))
+                  (when found
+                    (format t "~&@code[lang=lisp](@include[path=~a]())~%" (get-relative-path scr-path found)))))))))
       (when examples
         (with-section ("Examples")
           (dolist (example examples)
-            (let ((name (pathname-name example)))
-              (ppcre:register-groups-bind ((#'parse-integer num) rest) ("(\\\d+)\\\.(.+)" name)
-                (with-section ((if (and num rest)
-                                   (format nil "~a. ~a" num rest)
-                                   name))
-                  (format t "~&@code[lang=lisp](@include[path=~a]())~%" (get-relative-path scr-path example))))))))
+            (with-section ((pretty-name (pathname-name example)))
+              (format t "~&@code[lang=lisp](@include[path=~a]())~%" (get-relative-path scr-path example))))))
       (alexandria:when-let ((homepage (asdf:system-homepage system)))
         (with-section ("Source")
           (format t "~&@link[uri=~a](~a)~%" homepage package)))
