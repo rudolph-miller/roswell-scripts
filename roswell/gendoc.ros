@@ -134,10 +134,10 @@ exec ros -Q -- $0 "$@"
     (with-section ("Overview")
       (when travis-p
         (let ((travis-url (format nil "https://travis-ci.org/~a/~(~a~)" author package)))
-          (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%" travis-url travis-url)))
+          (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%~%" travis-url travis-url)))
       (when circle-p
         (let ((circle-url (format nil "https://circleci.com/gh/~a/~(~a~)" author package)))
-          (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%" circle-url circle-url)))
+          (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%~%" circle-url circle-url)))
       (let ((coveralls-url (format nil "https://coveralls.io/repos/~a/~(~a~)" author package)))
           (format t "~&@link[uri=~a](@image[src=\"~a/badge.svg\"]())~%" coveralls-url coveralls-url))
       (with-section ("Description")
