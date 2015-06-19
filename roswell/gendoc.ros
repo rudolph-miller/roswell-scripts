@@ -122,10 +122,13 @@ exec ros -Q -- $0 "$@"
         (format nil "~a. ~a" num rest))
       name))
 
+(defun pretty-author-name (name)
+  (substitute #\- #\Space name))
+
 (defun print-symbol-scr (package)
   (let* ((system (asdf:find-system package))
          (source-directory (asdf:system-source-directory system))
-         (author (asdf:system-author system))
+         (author (pretty-author-name (asdf:system-author system)))
          (travis-p (probe-file (merge-pathnames ".travis.yml" source-directory)))
          (circle-p (probe-file (merge-pathnames "circle.yml" source-directory)))
          (examples (fad:list-directory (merge-pathnames *example-dir* source-directory)))
