@@ -15,6 +15,7 @@ exec ros -Q -- $0 "$@"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Globals
 
+(defvar *description-dir* "descriptions")
 (defvar *example-dir* "examples")
 (defvar *image-dir* "images")
 (defvar *scr* "manual.scr")
@@ -131,6 +132,7 @@ exec ros -Q -- $0 "$@"
          (author (pretty-author-name (asdf:system-author system)))
          (travis-p (probe-file (merge-pathnames ".travis.yml" source-directory)))
          (circle-p (probe-file (merge-pathnames "circle.yml" source-directory)))
+         (descriptions (fad:list-directory (merge-pathnames *description-dir* source-directory)))
          (examples (fad:list-directory (merge-pathnames *example-dir* source-directory)))
          (images (fad:list-directory (merge-pathnames *image-dir* source-directory)))
          (scr-path (scr-path package)))
@@ -144,7 +146,11 @@ exec ros -Q -- $0 "$@"
       (let ((coveralls-url (format nil "https://coveralls.io/repos/~a/~(~a~)" author package)))
           (format t "~&@link[uri=~a](@image[src=\"~a/badge.svg\"]())~%" coveralls-url coveralls-url))
       (with-section ("Description")
-        (princ (asdf:system-description system)))
+        (princ (asdf:system-description system))
+        (dolist (description descriptions)
+          (with-section ((pretty-name (pathname-name description)))
+            (let ((string (alexandria:read-file-into-string description)))
+              (princ (ppcre:regex-replace-all "\\\n" string (format nil "~%~%")))))))
       (when images
         (with-section ("Images")
           (dolist (image images)
