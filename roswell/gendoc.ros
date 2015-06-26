@@ -119,12 +119,26 @@ exec ros -Q -- $0 "$@"
     (:condition "Conditions")))
 
 (defun pretty-name (name)
-  (or (ppcre:register-groups-bind ((#'parse-integer num) rest) ("(\\\d+)\\\.(.+)" name)
-        (format nil "~a. ~a" num rest))
-      name))
+  (multiple-value-bind (pretty num)
+      (ppcre:register-groups-bind ((#'parse-integer num) rest) ("^(\\\d+)\\\.(.+)" name)
+        (values (format nil "~a. ~a" num rest) num))
+    (if (and pretty num)
+        (values pretty num)
+        name)))
 
 (defun pretty-author-name (name)
   (substitute #\- #\Space name))
+
+(defun pretty-pathname-sort (list)
+  (sort list (lambda (path1 path2)
+               (multiple-value-bind (pretty1 num1) (pretty-name (pathname-name path1))
+                 (multiple-value-bind (pretty2 num2) (pretty-name (pathname-name path2))
+                   (cond
+                     ((and num1 num2)
+                      (< num1 num2))
+                     (num1 t)
+                     (num2 nil)
+                     (t (string< pretty1 pretty2))))))))
 
 (defun print-symbol-scr (package)
   (let* ((system (asdf:find-system package))
@@ -132,9 +146,9 @@ exec ros -Q -- $0 "$@"
          (author (pretty-author-name (asdf:system-author system)))
          (travis-p (probe-file (merge-pathnames ".travis.yml" source-directory)))
          (circle-p (probe-file (merge-pathnames "circle.yml" source-directory)))
-         (descriptions (fad:list-directory (merge-pathnames *description-dir* source-directory)))
-         (examples (fad:list-directory (merge-pathnames *example-dir* source-directory)))
-         (images (fad:list-directory (merge-pathnames *image-dir* source-directory)))
+         (descriptions (pretty-pathname-sort (fad:list-directory (merge-pathnames *description-dir* source-directory))))
+         (examples (pretty-pathname-sort (fad:list-directory (merge-pathnames *example-dir* source-directory))))
+         (images (pretty-pathname-sort (fad:list-directory (merge-pathnames *image-dir* source-directory))))
          (scr-path (scr-path package)))
     (with-section ("Overview")
       (when travis-p
