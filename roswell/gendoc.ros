@@ -6,7 +6,8 @@ exec ros -Q -- $0 "$@"
 
 (in-package :cl-user)
 
-(ql:quickload '(:cl-fad :alexandria :closer-mop :cl-ppcre :docparser :codex) :silent t)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (ql:quickload '(:cl-fad :alexandria :closer-mop :cl-ppcre :docparser :codex :cl-annot-prove) :silent t))
 
 (defpackage gendoc
   (:use :cl))
@@ -199,7 +200,11 @@ exec ros -Q -- $0 "$@"
             (with-section ((type->title key))
               (loop for symbol in symbols
                     do (with-package ((symbol-package symbol))
-                         (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol))))))))))
+                         (format t "~&@cl:doc(~(~a~) ~(~a~))~%" key symbol)
+                         (alexandria:when-let (symbol-tests (car (annot.prove:query-symbol-tests :symbol symbol)))
+                           (format t "~&@code[lang=lisp](;; Usage of ~a~%~a)~%"
+                                   (symbol-name symbol)
+                                   (annot.prove:render-symbol-tests symbol-tests))))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Manifest
