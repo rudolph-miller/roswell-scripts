@@ -147,6 +147,7 @@ exec ros -Q -- $0 "$@"
          (author (pretty-author-name (asdf:system-author system)))
          (travis-p (probe-file (merge-pathnames ".travis.yml" source-directory)))
          (circle-p (probe-file (merge-pathnames "circle.yml" source-directory)))
+         (quicklisp-p (and (ql-dist:find-system package) t))
          (descriptions (pretty-pathname-sort (fad:list-directory (merge-pathnames *description-dir* source-directory))))
          (examples (pretty-pathname-sort (fad:list-directory (merge-pathnames *example-dir* source-directory))))
          (images (pretty-pathname-sort (fad:list-directory (merge-pathnames *image-dir* source-directory))))
@@ -160,6 +161,10 @@ exec ros -Q -- $0 "$@"
           (format t "~&@link[uri=~a](@image[src=\"~a.svg\"]())~%~%" circle-url circle-url)))
       (let ((coveralls-url (format nil "https://coveralls.io/repos/~a/~(~a~)" author package)))
           (format t "~&@link[uri=~a](@image[src=\"~a/badge.svg\"]())~%" coveralls-url coveralls-url))
+      (when quicklisp-p
+        (let ((quicklisp-link-uri (format nil "http://quickdocs.org/~(~a~)/" package))
+              (quicklisp-badge-uri (format nil "http://quickdocs.org/badge/~(~a~).svg" package)))
+          (format t "~&@link[uri=~a](@image[src=\"~a\"]())~%" quicklisp-link-uri quicklisp-badge-uri)))
       (with-section ("Description")
         (princ (asdf:system-description system))
         (dolist (description descriptions)
