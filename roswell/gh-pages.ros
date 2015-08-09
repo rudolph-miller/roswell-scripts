@@ -19,15 +19,19 @@ git checkout gh-pages >/dev/null 2>&1
 mkdir -p docs
 
 $HOME/.roswell/bin/gendoc $SYSTEM_NAME
-mv docs/build/$SYSTEM_NAME/html/* ./
-git add -A
-COMMIT_MESSAGE="update docs at $(date +%s). [ci skip]"
-git commit -m "$COMMIT_MESSAGE" >/dev/null 2>&1
-echo "commit -m \"$COMMIT_MESSAGE\"."
+if [ -d docs/build/$SYSTEM_NAME/html ]; then
+  mv docs/build/$SYSTEM_NAME/html/* ./
+  git add -A
+  COMMIT_MESSAGE="update docs at $(date +%s). [ci skip]"
+  git commit -m "$COMMIT_MESSAGE" >/dev/null 2>&1
+  echo "commit -m \"$COMMIT_MESSAGE\"."
 
-((git push origin gh-pages >/dev/null 2>&1 || git push -f origin gh-pages >/dev/null 2>&1) \
-  && echo "push origin gh-pages.") \
-  || echo "could not push origin gh-pages."
+  ((git push origin gh-pages >/dev/null 2>&1 || git push -f origin gh-pages >/dev/null 2>&1) \
+    && echo "push origin gh-pages.") \
+    || echo "could not push origin gh-pages."
+else
+  echo "could not build docs."
+fi
 
 ################################################################
 ## checkout $CURRENT_BRANCH
