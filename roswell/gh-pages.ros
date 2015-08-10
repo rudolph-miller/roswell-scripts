@@ -46,7 +46,9 @@ git checkout $CURRENT_BRANCH >/dev/null 2>&1
 ## finalize
 
 if faild; then
+  echo "Failed."
   exit 1
 else
+  echo "Completed."
   exit 0
 fi
