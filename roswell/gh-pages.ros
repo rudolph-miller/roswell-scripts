@@ -20,7 +20,7 @@ mkdir -p docs
 
 $HOME/.roswell/bin/gendoc $SYSTEM_NAME
 
-FAILED=false
+FAILED=0
 
 if [ -d docs/build/$SYSTEM_NAME/html ]; then
   mv docs/build/$SYSTEM_NAME/html/* ./
@@ -34,7 +34,7 @@ if [ -d docs/build/$SYSTEM_NAME/html ]; then
     || echo "could not push origin gh-pages."
 else
   echo "could not build docs."
-  FAILED=true
+  FAILED=1
 fi
 
 ################################################################
@@ -45,7 +45,7 @@ git checkout $CURRENT_BRANCH >/dev/null 2>&1
 ################################################################
 ## finalize
 
-if [ FAILED -eq true ]; then
+if [ FAILED -eq 1 ]; then
   echo "Failed."
   exit 1
 else
