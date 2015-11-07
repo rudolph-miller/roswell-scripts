@@ -1,7 +1,5 @@
 #!/bin/sh
 
-cd ~/lisp/elb-log
-
 ################################################################
 ## Variables
 
@@ -31,7 +29,7 @@ if [ -d docs/build/$SYSTEM_NAME/html ]; then
 
   ((git push origin gh-pages >/dev/null 2>&1 || git push -f origin gh-pages >/dev/null 2>&1) \
     && echo "push origin gh-pages.") \
-    || echo "could not push origin gh-pages."
+    || echo "could not push origin gh-pages."; FAILED=1
 else
   echo "could not build docs."
   FAILED=1
